@@ -1,0 +1,155 @@
+{%- comment -%}
+  Used similarLy to to /cart.js, but includes the "product_tags" field.
+  (Tags aren't included in /cart.js calls by default.)
+
+  There are subtle differences between using liquid in this fashion versus the
+  results in cart.js, so please be careful of bugs. I have tried to mimic /cart.js
+  as much as possible.
+  Comments below indicate the differences I've noticed.
+{%- endcomment -%}
+
+{% layout none %}
+{
+  "attributes": {{ cart.attributes | json }},
+  "cart_level_discount_applications": {{ cart.cart_level_discount_applications | json }},
+  "currency": {{ cart.currency.iso_code | json }},
+  "item_count": {{ cart.item_count | json }},
+  "items": [
+    {% for line_item  in cart.items %}
+      {
+        "discounted_price": {{ line_item.discounted_price | json }},
+        "discounts": [
+          {% for discount_allocation in line_item.line_level_discount_allocations %}
+            {
+              "amount": {{ discount_allocation.amount | json }},
+              "title": {{ discount_allocation.discount_application.title | json}}
+            }{% unless forloop.last %},{% endunless %}
+          {% endfor %}
+        ],
+        "featured_image": {
+          {%- comment -%}
+            The aspect ratio given by liquid has more significant digits than /cart.js.
+          {%- endcomment -%}
+          "aspect_ratio": {{ line_item.product.featured_image.aspect_ratio | json }},
+
+          "alt": {{ line_item.product.featured_image.alt | json }},
+          "height": {{ line_item.product.featured_image.height | json }},
+          {%- comment -%}
+            URLs in /cart.js always start with https://, while in liquid they start with //.
+          {%- endcomment -%}
+          "url": {{ line_item.product.featured_image.src | json }},
+
+          "width": {{ line_item.product.featured_image.width | json }}
+        },
+        "final_line_price": {{ line_item.final_line_price | json }},
+        "final_price": {{ line_item.final_price | json }},
+        "gift_card": {{ line_item.gift_card | json }},
+        "grams": {{ line_item.grams | json }},
+        "handle": {{ line_item.product.handle | json }},
+        "id": {{ line_item.id | json }},
+        "image": {{ line_item.image | json }},
+        "key": {{ line_item.key | json }},
+        "line_level_discount_allocations": [
+          {% for discount_allocation in line_item.line_level_discount_allocations %}
+            {
+              "amount": {{ discount_allocation.amount | json }},
+              {% assign application = discount_allocation.discount_application %}
+              "discount_application": {
+                {%- comment -%} Not currently accessible via liquid
+                "allocation_method": {{ application.allocation_method | json }},
+                "created_at": {{ application.created_at | json }},
+                {%- endcomment -%}
+                "description": {{ application.description | json }},
+
+                {%- comment -%} Currently, the discount "key" isn't accessible in liquid.
+                  "key": {{ application.key | json }},
+                {%- endcomment -%}
+
+                "target_selection": {{ application.target_selection | json }},
+                "target_type": {{ application.target_type | json }},
+                "title": {{ application.title | json }},
+                "total_allocated_amount": {{ application.total_allocated_amount | json }},
+                "type": {{ application.type | json }},
+
+                {%- comment -%}
+                  "value" has a decimal point in /cart.js even for integers, but
+                  this is not always the case here.
+                {%- endcomment -%}
+                "value": {{ application.value | json }},
+
+                "value_type": {{ application.value_type | json }}
+              }
+            }{% unless forloop.last %},{% endunless %}
+          {% endfor %}
+        ],
+        "line_level_total_discount": {{ line_item.line_level_total_discount | json }},
+        "line_price": {{ line_item.line_price | json }},
+        "options_with_values": {{ line_item.options_with_values | json }},
+        "original_line_price": {{ line_item.original_line_price | json }},
+        "original_price": {{ line_item.original_price | json }},
+
+        {%- comment -%}
+          This is the most interesting difference. In cart.js, "price" refers to
+          the line_item's original_price attribute, whereas in liquid, it is
+          the line_item's price attribute (as one would expect). That is why
+          we set it to original_price here instead of price.
+        {%- endcomment -%}
+        "price": {{ line_item.original_price | json }},
+
+        {%- comment -%}
+          Note that we have to strip_html to make it the same as /cart.js
+        {%- endcomment -%}
+        "product_description": {{ line_item.product.description | strip_html | json }},
+
+        "product_has_only_default_variant": {{ line_item.product.has_only_default_variant | json }},
+        "product_id": {{ line_item.product_id | json }},
+        "product_title": {{ line_item.product.title | json }},
+        "product_type": {{ line_item.product.type | json }},
+
+        {%- comment -%}
+          This is the appended tag property that does not come with /cart.js.
+        {%- endcomment -%}
+        "product_tags": {{ line_item.product.tags | json }},
+
+        "properties": {
+          {% for property in line_item.properties %}
+            {{ property | first | json }}: {{ property | last | json }}
+            {% unless forloop.last %},{% endunless %}
+          {% endfor %}
+        },
+        "quantity": {{ line_item.quantity | json }},
+        "requires_shipping": {{ line_item.requires_shipping | json }},
+        "sku": {{ line_item.sku | json }},
+        "taxable": {{ line_item.taxable | json }},
+        "title": {{ line_item.title | json }},
+        "total_discount": {{ line_item.total_discount | json }},
+        "url": {{ line_item.url | json }},
+        "variant_id": {{ line_item.variant_id | json }},
+        "variant_options": {{ line_item.variant.options | json }},
+
+        {%- comment -%}
+          Variants with "Default Title" are set to null in /cart.js
+        {%- endcomment -%}
+        {% if line_item.variant.title == 'Default Title' %}
+          "variant_title": null,
+        {% else %}
+          "variant_title": {{ line_item.variant.title | json }},
+        {% endif %}
+
+        "vendor": {{ line_item.vendor | json }}
+      }{% unless forloop.last %},{% endunless %}
+    {% endfor %}
+  ],
+  "items_subtotal_price": {{ cart.items_subtotal_price | json }},
+  "note": {{ cart.note | json }},
+  "original_total_price": {{ cart.original_total_price | json }},
+  "requires_shipping": {{ cart.requires_shipping | json }},
+
+  {%- comment -%} Shopify removed this property from the cart object.
+  "token": {{ cart.token | json }},
+  {%- endcomment -%}
+
+  "total_discount": {{ cart.total_discount | json }},
+  "total_price": {{ cart.total_price | json }},
+  "total_weight": {{ cart.total_weight | json }}
+}
